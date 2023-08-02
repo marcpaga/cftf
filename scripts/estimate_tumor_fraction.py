@@ -19,21 +19,17 @@ def main(input_file, output_file, num_simulations, tf_min, tf_max, tf_precision,
     alternative_alleles = 0
     with open(input_file, 'r') as handle:
         c = 0
+        vafs = []
         for line in handle:
-            if line.startswith('#num_measurements'):
-                num_measurements = int(line[1:].split('=')[-1].strip('\n'))
-                vafs = np.zeros((num_measurements, ), dtype = float)
-                continue
-
             if line.startswith('#'):
                 continue
-
             line = line.strip('\n').split('\t')
             vaf, ra = float(line[0]), int(line[1])
-            vafs[c] = vaf
+            vafs.append( vaf )
             c += 1
             alternative_alleles += ra
-
+    vafs = np.array(vafs)
+    # assert np.array_equal(vafs, vafs2), "not equal"
     print('Number of measurements: {}'.format(len(vafs)))
     print('Number of alternative alleles: {}'.format(alternative_alleles))
 
@@ -47,6 +43,7 @@ def main(input_file, output_file, num_simulations, tf_min, tf_max, tf_precision,
 
     if not os.path.isfile(output_file):
         with open(output_file, 'w') as handle:
+            # f'#Number of measurements: {len(vafs)}\n#Number of alternative alleles: {alternative_alleles}\n'+
             handle.write(
                 '\t'.join(header.astype(int).astype(str).tolist())+'\n'
             )
@@ -58,7 +55,7 @@ def main(input_file, output_file, num_simulations, tf_min, tf_max, tf_precision,
                     sim_alternative_alleles[sim_num] = draw_allele(vafs*tf).sum()
                     pbar.update(1)
 
-                sim_alternative_alleles, header = np.histogram(
+                sim_alternative_hist, header = np.histogram(
                     sim_alternative_alleles, 
                     bins = 1000,
                     range = (0, 10000)
@@ -66,12 +63,14 @@ def main(input_file, output_file, num_simulations, tf_min, tf_max, tf_precision,
                 
                 with open(output_file, 'a') as handle:
                     handle.write(
-                        '\t'.join(sim_alternative_alleles.astype(str).tolist())+'\n'
+                        '\t'.join(sim_alternative_hist.astype(str).tolist())+'\n'
                     )
 
     with open(output_file, 'r') as handle:
         for line_num, line in enumerate(handle):
-            if line_num == 0:
+            if line.startswith("#"):
+                continue
+            elif line_num == 0:
                 header = np.array(line.strip('\n').split('\t')).astype(int)
                 
                 col_num = np.searchsorted(header, alternative_alleles) - 1
@@ -87,7 +86,7 @@ def main(input_file, output_file, num_simulations, tf_min, tf_max, tf_precision,
                 continue
 
             else:
-                print('Tumor fraction {}: {}%'.format(tf, counts[col_num]*100))
+                print('Tumor fraction {}: {}%'.format(round(tf,4), counts[col_num]*100))
 
 
 if __name__ == "__main__":
